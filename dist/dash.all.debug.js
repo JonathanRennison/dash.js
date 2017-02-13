@@ -15895,24 +15895,37 @@ function XHRLoader(cfg) {
             }
 
             if (needFailureReport) {
-                handleLoaded(false);
+                (function () {
+                    handleLoaded(false);
 
-                if (remainingAttempts > 0) {
-                    remainingAttempts--;
-                    retryTimers.push(setTimeout(function () {
-                        internalLoad(config, remainingAttempts);
-                    }, mediaPlayerModel.getRetryIntervalForType(request.type)));
-                } else {
-                    errHandler.downloadError(downloadErrorToRequestTypeMap[request.type], request.url, request);
-
-                    if (config.error) {
-                        config.error(request, 'error', xhr.statusText);
+                    var state = {
+                        xhr: xhr,
+                        config: config,
+                        request: request,
+                        remainingAttempts: remainingAttempts,
+                        retryInterval: mediaPlayerModel.getRetryIntervalForType(request.type)
+                    };
+                    if (config.failureHandler) {
+                        config.failureHandler(state);
                     }
 
-                    if (config.complete) {
-                        config.complete(request, xhr.statusText);
+                    if (state.remainingAttempts > 0) {
+                        state.remainingAttempts--;
+                        retryTimers.push(setTimeout(function () {
+                            internalLoad(state.config, state.remainingAttempts);
+                        }, state.retryInterval));
+                    } else {
+                        errHandler.downloadError(downloadErrorToRequestTypeMap[request.type], request.url, request);
+
+                        if (state.config.error) {
+                            state.config.error(request, 'error', xhr.statusText);
+                        }
+
+                        if (state.config.complete) {
+                            state.config.complete(request, xhr.statusText);
+                        }
                     }
-                }
+                })();
             }
         };
 
