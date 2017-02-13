@@ -118,12 +118,23 @@ function XHRLoader(cfg) {
             if (needFailureReport) {
                 handleLoaded(false);
 
-                if (remainingAttempts > 0) {
-                    remainingAttempts--;
+                const state = {
+                    xhr: xhr,
+                    config: config,
+                    request: request,
+                    remainingAttempts: remainingAttempts,
+                    retryInterval: mediaPlayerModel.getRetryIntervalForType(request.type),
+                };
+                if (config.failureHandler) {
+                    config.failureHandler(state);
+                }
+
+                if (state.remainingAttempts > 0) {
+                    state.remainingAttempts--;
                     retryTimers.push(
                         setTimeout(function () {
-                            internalLoad(config, remainingAttempts);
-                        }, mediaPlayerModel.getRetryIntervalForType(request.type))
+                            internalLoad(state.config, state.remainingAttempts);
+                        }, state.retryInterval)
                     );
                 } else {
                     errHandler.downloadError(
@@ -132,12 +143,12 @@ function XHRLoader(cfg) {
                         request
                     );
 
-                    if (config.error) {
-                        config.error(request, 'error', xhr.statusText);
+                    if (state.config.error) {
+                        state.config.error(request, 'error', xhr.statusText);
                     }
 
-                    if (config.complete) {
-                        config.complete(request, xhr.statusText);
+                    if (state.config.complete) {
+                        state.config.complete(request, xhr.statusText);
                     }
                 }
             }
@@ -286,7 +297,7 @@ function XHRLoader(cfg) {
 
     instance = {
         load: load,
-        abort: abort
+        abort: abort,
     };
 
     setup();
